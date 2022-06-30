@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="TimelineChart">
+        <attr name="tlcStartHour" format="integer" />
+        <attr name="tlcEndHour" format="integer" />
+        <attr name="tlcHourLineHeight" format="dimension" />
+        <attr name="tlcHaftHourHeight" format="dimension" />
+        <attr name="tlcHourLineColor" format="color" />
+        <attr name="tlcHaftHourLineColor" format="color" />
+        <attr name="tlcHourLabelWidth" format="dimension" />
+        <attr name="tlcEventMargin" format="dimension" />
+    </declare-styleable>
+</resources>
