@@ -3,8 +3,6 @@ package vn.vannhat.timelinechart.chart
 import android.graphics.Color
 import android.graphics.Rect
 import android.view.View
-import androidx.annotation.ColorRes
-import vn.vannhat.timelinechart.R
 
 data class ChartEvent(
     val title: String?,

@@ -9,5 +9,7 @@
         <attr name="tlcHaftHourLineColor" format="color" />
         <attr name="tlcHourLabelWidth" format="dimension" />
         <attr name="tlcEventMargin" format="dimension" />
+        <attr name="tlcVerticalColumnCount" format="integer" />
+        <attr name="tlcVerticalColumnWidth" format="dimension" />
     </declare-styleable>
 </resources>
