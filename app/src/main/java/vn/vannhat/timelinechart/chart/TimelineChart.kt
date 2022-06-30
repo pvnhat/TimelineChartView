@@ -25,6 +25,7 @@ class TimelineChart @JvmOverloads constructor(
 
     private val hourDividerRects: List<Rect>
     private val halfHourDividerRects: List<Rect>
+    private val verticalDividerRects: List<Rect>
 
     private val startHour: Int
     private val endHour: Int
@@ -37,22 +38,17 @@ class TimelineChart @JvmOverloads constructor(
     private val hourLineHeight: Int
     private val haftHourHeight: Int
     private val hourLabelWidth: Int
-  private val eventMargin: Int
+    private val eventMargin: Int
+    private val verticalColumnCount: Int
+    private val verticalColumnWidth: Int
 
-    private val hourLinePaint: Paint
+    private val masterLinePaint: Paint
     private val haftHourLinePaint: Paint
 
 
     var chartHours = listOf<ChartTime>()
     private var chartEvents = listOf<ChartEvent>()
     private var eventColumnSpansHelper: EventColumnSpansHelper? = null
-
-    var columnsCount: Int = DEFAULT_COLUMN
-        set(value) {
-            if (field == value) return
-            requestLayout()
-            field = value
-        }
 
     init {
         val typedArray = context.obtainStyledAttributes(attrs, R.styleable.TimelineChart)
@@ -76,6 +72,13 @@ class TimelineChart @JvmOverloads constructor(
             typedArray.getDimensionPixelSize(R.styleable.TimelineChart_tlcHourLabelWidth, 0)
         eventMargin =
             typedArray.getDimensionPixelSize(R.styleable.TimelineChart_tlcEventMargin, 0)
+        verticalColumnCount =
+            max(typedArray.getInteger(R.styleable.TimelineChart_tlcVerticalColumnCount, 0), 0)
+        verticalColumnWidth =
+            typedArray.getDimensionPixelSize(
+                R.styleable.TimelineChart_tlcVerticalColumnWidth,
+                DEFAULT_COLUMN_WIDTH
+            )
 
         startMinute = startHour * MINUTES_PER_HOUR
         endMinute = endHour * MINUTES_PER_HOUR
@@ -88,8 +91,9 @@ class TimelineChart @JvmOverloads constructor(
 
         hourDividerRects = List(hourDividersCount) { Rect() }
         halfHourDividerRects = List(halfHourDividersCount) { Rect() }
+        verticalDividerRects = List(verticalColumnCount + 1) { Rect() }
 
-        hourLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        masterLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = hourLineColor
         }
         haftHourLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -165,27 +169,32 @@ class TimelineChart @JvmOverloads constructor(
         }
 
         val usableHeight = (hourDividerRects.size + halfHourDividerRects.size - 1) * haftHourHeight
+        val usableWidth = (verticalDividerRects.size - 1) * verticalColumnWidth * 2
         val minuteHeight: Float = usableHeight.toFloat() / minuteCount
         firstDividerTop += paddingTop
         val verticalPadding =
             firstDividerTop + lastDividerMarginBottom + paddingBottom + hourLineHeight
+        val horizontalPadding = paddingStart + paddingEnd + hourLineHeight
         val measuredHeight = usableHeight + verticalPadding
+        val measuredWidth = usableWidth + horizontalPadding + hourLabelWidth
 
         // Calculate the horizontal positions of the dividers
         val hourLabelStart = paddingLeft
         val hourLabelEnd = hourLabelStart + hourLabelWidth
-        val dividerEnd = measuredWidth - paddingRight
+        val dividerEnd = max(measuredWidth, this.measuredWidth) - paddingRight
+        val labelHeight = chartHours.firstOrNull()?.view?.measuredHeight ?: 0
+        val dividerBottom = measuredHeight - paddingBottom - labelHeight / 2
 
         // Set the rects for hour labels, dividers, and events
         setHourLabelRects(hourLabelStart, hourLabelEnd, firstDividerTop)
-        setDividerRects(firstDividerTop, hourLabelEnd, dividerEnd)
+        setDividerRects(firstDividerTop, hourLabelEnd, dividerEnd, dividerBottom)
         setEventRects(firstDividerTop, minuteHeight, hourLabelEnd, dividerEnd)
 
         // Measure the views
         measureHourLabels()
         measureEvents()
 
-        setMeasuredDimension(widthMeasureSpec, measuredHeight)
+        setMeasuredDimension(max(measuredWidth, widthMeasureSpec), measuredHeight)
     }
 
     private fun measureEvents() {
@@ -223,7 +232,7 @@ class TimelineChart @JvmOverloads constructor(
                 eventStartMinute = endMinute - duration
             }
 
-            val start = eventColumnSpan.startColumn * e.columnWidth + dividerStart+ eventMargin
+            val start = eventColumnSpan.startColumn * e.columnWidth + dividerStart + eventMargin
             val end = start + e.columnWidth - eventMargin * 2
             val topOffset = (eventStartMinute - startMinute) * minuteHeight
             val top = firstDividerTop + topOffset + hourLineHeight + eventMargin
@@ -232,7 +241,12 @@ class TimelineChart @JvmOverloads constructor(
         }
     }
 
-    private fun setDividerRects(firstDividerTop: Int, dividerStart: Int, dividerEnd: Int) {
+    private fun setDividerRects(
+        firstDividerTop: Int,
+        dividerStart: Int,
+        dividerEnd: Int,
+        dividerBottom: Int
+    ) {
         hourDividerRects.forEachIndexed { index, rect ->
             val top = firstDividerTop + index * 2 * haftHourHeight
             val bottom = top + hourLineHeight
@@ -242,6 +256,11 @@ class TimelineChart @JvmOverloads constructor(
             val top = firstDividerTop + (index * 2 + 1) * haftHourHeight
             val bottom = top + hourLineHeight
             rect.set(dividerStart, top, dividerEnd, bottom)
+        }
+        verticalDividerRects.forEachIndexed { index, rect ->
+            val start = dividerStart + index * 2 * verticalColumnWidth
+            val end = start + hourLineHeight
+            rect.set(start, firstDividerTop, end, dividerBottom)
         }
     }
 
@@ -265,10 +284,13 @@ class TimelineChart @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
         hourDividerRects.forEach {
-            canvas?.drawRect(it, hourLinePaint)
+            canvas?.drawRect(it, masterLinePaint)
         }
         halfHourDividerRects.forEach {
             canvas?.drawRect(it, haftHourLinePaint)
+        }
+        verticalDividerRects.forEach {
+            canvas?.drawRect(it, masterLinePaint)
         }
     }
 
@@ -288,6 +310,6 @@ class TimelineChart @JvmOverloads constructor(
         private const val MAX_END_HOUR = 24
         private const val MINUTES_PER_HOUR = 60
         private const val MIN_DURATION_MINUTES = 15
-        private const val DEFAULT_COLUMN = 1
+        private const val DEFAULT_COLUMN_WIDTH = 300
     }
 }
